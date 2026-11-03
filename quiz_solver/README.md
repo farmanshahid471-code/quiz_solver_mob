@@ -48,14 +48,17 @@ D:\quiz_solver_mob\quiz_solver> D:\quiz_solver_mob\.venv\Scripts\activate
 ```
 
 Troubleshooting: if you ran `cd D:\` but the prompt still shows `C:\...`, the
-clone went to the C: folder. Move it over and redo the venv in the right place:
+clone went to the C: folder. Easiest fix (avoids "Access is denied" from
+`move`, which happens when Explorer/antivirus locks the folder): close all
+File Explorer windows, remove the stray folder on D:, and re-clone directly
+on D:
 
 ```bat
-REM only do this if D:\quiz_solver_mob contains just the stray .venv:
-rmdir /s /q D:\quiz_solver_mob
-move C:\Users\<you>\quiz_solver_mob D:\
-cd D:\quiz_solver_mob\quiz_solver
-python -m venv D:\quiz_solver_mob\.venv
+D:\> rmdir /s /q D:\quiz_solver_mob
+D:\> git clone -b arena/cb605cae-quiz-solver-mob https://github.com/farmanshahid471-code/quiz_solver_mob.git
+D:\> rmdir /s /q C:\Users\<you>\quiz_solver_mob     REM clean up the old C: copy
+D:\> cd D:\quiz_solver_mob\quiz_solver
+D:\quiz_solver_mob\quiz_solver> python -m venv D:\quiz_solver_mob\.venv
 ```
 
 Optional: `pip install pytesseract` + the Tesseract binary if you prefer it over RapidOCR.
