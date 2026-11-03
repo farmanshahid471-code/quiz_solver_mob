@@ -57,6 +57,8 @@ class QuizSolverApp:
         self._stable = 0
         self._changed = False
         self._busy = False
+        self._last_scan = 0.0
+        self.cooldown = 3.0  # min seconds between auto scans (OCR is the slow part)
         self._lock = threading.Lock()
         self._last_hash = ""
 

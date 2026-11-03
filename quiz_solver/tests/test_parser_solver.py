@@ -76,3 +76,11 @@ def test_solver_cache_is_zero_latency():
     second = s.solve(m)
     assert second.latency_ms == 0 and "cached" in second.source
     assert second.letter == first.letter
+
+
+def test_parser_picks_biggest_option_block_over_browser_junk():
+    # simulates camera seeing browser chrome + a real MCQ with 4 options
+    m = parse_mcq("FXBTC/USD:39735.88 A) junk\n"
+                  "What is 2+2?\nA) 3\nB) 4\nC) 5\nD) 6\nShow hint v 1/10")
+    assert m.options == {'A': '3', 'B': '4', 'C': '5', 'D': '6'}, m
+    assert "What is 2+2?" in m.question

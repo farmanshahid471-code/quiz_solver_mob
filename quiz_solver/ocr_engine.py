@@ -11,17 +11,19 @@ import cv2
 import numpy as np
 
 
-def preprocess(img: np.ndarray, target_width: int = 1600) -> np.ndarray:
-    """Upscale small text, enhance contrast, denoise - improves OCR a lot."""
+def preprocess(img: np.ndarray, target_width: int = 1280) -> np.ndarray:
+    """Keep OCR fast: cap the working resolution (bigger = much slower on CPU),
+    enhance contrast with CLAHE. Heavy denoising removed - it cost seconds."""
     h, w = img.shape[:2]
-    if w < target_width:
+    if w > target_width:
         scale = target_width / w
-        img = cv2.resize(img, (target_width, int(h * scale)), interpolation=cv2.INTER_CUBIC)
+        img = cv2.resize(img, (target_width, int(h * scale)), interpolation=cv2.INTER_AREA)
+    elif w < 700:  # tiny frame: upscale a bit so small text is readable
+        scale = 700 / w
+        img = cv2.resize(img, (700, int(h * scale)), interpolation=cv2.INTER_CUBIC)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    gray = clahe.apply(gray)
-    gray = cv2.fastNlMeansDenoising(gray, None, h=7, templateWindowSize=7, searchWindowSize=21)
-    return gray
+    return clahe.apply(gray)
 
 
 class OCREngine:

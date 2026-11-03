@@ -37,13 +37,28 @@ def parse_mcq(text: str) -> MCQ | None:
     options: dict[str, str] = {}
     question_lines: list[str] = []
 
-    # Pass 1: option-per-line
+    # Pass 1: option-per-line, keeping contiguous blocks so we can pick the
+    # biggest/best block (the camera often sees browser junk around the MCQ)
+    blocks: list[tuple[list[str], dict[str, str]]] = []
+    cur_q: list[str] = []
+    cur_o: dict[str, str] = {}
     for line in lines:
         m = OPTION_RE.match(line)
         if m:
-            options[m.group(1).upper()] = _clean(m.group(2))
+            cur_o[m.group(1).upper()] = _clean(m.group(2))
         else:
-            question_lines.append(line)
+            if cur_o:
+                blocks.append((cur_q, cur_o))
+                cur_q, cur_o = [], {}
+            cur_q.append(line)
+    if cur_o:
+        blocks.append((cur_q, cur_o))
+    if not blocks:
+        question_lines = lines  # no per-line options -> maybe inline options
+
+    if blocks:
+        # prefer the block with the most options (real MCQ, not stray "A)" junk)
+        question_lines, options = max(blocks, key=lambda b: len(b[1]))
 
     # Pass 2: inline options on a single line, e.g. "A) x B) y C) z D) w"
     if len(options) < 2 and question_lines:

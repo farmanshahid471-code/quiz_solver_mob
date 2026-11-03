@@ -88,19 +88,28 @@ def _extract_letter(text: str, mcq: MCQ) -> str | None:
 
 def solve_gemini(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> Answer:
     start = time.perf_counter()
-    url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
-           f"{model}:generateContent?key={api_key}")
     body = {
         "contents": [{"parts": [{"text": PROMPT.format(mcq=mcq.to_prompt())}]}],
         "generationConfig": {"maxOutputTokens": 16, "temperature": 0},
     }
-    r = requests.post(url, json=body, timeout=timeout)
-    r.raise_for_status()
-    data = r.json()
-    text = data["candidates"][0]["content"]["parts"][0]["text"]
-    latency = int((time.perf_counter() - start) * 1000)
-    return Answer(_extract_letter(text, mcq), mcq.options.get(_extract_letter(text, mcq) or "", text),
-                  "gemini", latency, raw=text)
+    # try v1beta first, fall back to v1 (404 happens when the model name is
+    # only available on one of the endpoints for a given key)
+    last_err = None
+    for api_version in ("v1beta", "v1"):
+        url = (f"https://generativelanguage.googleapis.com/{api_version}/models/"
+               f"{model}:generateContent?key={api_key}")
+        try:
+            r = requests.post(url, json=body, timeout=timeout)
+            r.raise_for_status()
+            data = r.json()
+            text = data["candidates"][0]["content"]["parts"][0]["text"]
+            latency = int((time.perf_counter() - start) * 1000)
+            return Answer(_extract_letter(text, mcq),
+                          mcq.options.get(_extract_letter(text, mcq) or "", text),
+                          "gemini", latency, raw=text)
+        except Exception as e:
+            last_err = e
+    raise last_err
 
 
 def solve_deepseek(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> Answer:
