@@ -33,6 +33,7 @@ class PhoneCamera:
                  width: int = 960, height: int = 540):
         self.stream_url = stream_url
         self.snapshot_url = snapshot_url
+        self.source = source
         self.width, self.height = width, height
         self._lock = threading.Lock()
         self._frame: np.ndarray | None = None

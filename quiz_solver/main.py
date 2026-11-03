@@ -99,8 +99,9 @@ class QuizSolverApp:
 
     # ------------------------------------------------------------------ #
     def run(self) -> None:
-        cam = PhoneCamera(stream_url=self.args.stream_url,
+        cam = PhoneCamera(stream_url=self.args.stream_url if self.args.source is None else None,
                           snapshot_url=self.args.snapshot_url,
+                          source=self.args.source,
                           width=960, height=540)
         if not self.args.no_window:
             try:
@@ -174,6 +175,8 @@ def main() -> None:
                    help="MJPEG stream URL of the phone camera (IP Webcam: http://<phone-ip>:8080/video)")
     p.add_argument("--snapshot-url", default=os.environ.get("PHONE_SNAPSHOT_URL", ""),
                    help="fallback snapshot URL (IP Webcam: http://<phone-ip>:8080/shot.jpg)")
+    p.add_argument("--source", type=int, default=None,
+                   help="local webcam index (e.g. --source 0) when the phone appears as a PC webcam via iVCam/EpocCam/DroidCam")
     p.add_argument("--ocr", default="rapidocr", choices=["rapidocr", "tesseract"])
     p.add_argument("--provider", default="none", choices=["none", "gemini", "deepseek"])
     p.add_argument("--api-key", default="")

@@ -15,16 +15,45 @@ Phone (IP Webcam app) --Wi-Fi MJPEG--> PC (this project)
         --> answer overlay on live preview + always-on-top window
 ```
 
-## 1. Setup the phone as a camera
+## 1. Connect your phone
 
-1. Install **IP Webcam** on Android
-   (repo: https://github.com/pavelkhlebovich/ip-webcam , Play Store: "IP Webcam").
-2. Phone and PC on the **same Wi‑Fi**. Open the app → "Start server".
-3. Note the phone's IP shown at the bottom, e.g. `http://192.168.1.50:8080`.
-   - stream: `http://192.168.1.50:8080/video`
-   - snapshot fallback: `http://192.168.1.50:8080/shot.jpg`
+The PC and phone must be on the **same router/LAN** (PC by cable + phone on
+Wi‑Fi is fine). The video stays on your local network — it never goes to the
+internet. Quick check from the PC: `ping <phone-ip>` must reply.
 
-   (DroidCam also works: `http://<phone-ip>:4747/video`.)
+### Android (recommended — free, Wi‑Fi or USB)
+
+1. Install **IP Webcam** (Play Store; repo: https://github.com/pavelkhlebovich/ip-webcam).
+2. Open the app → **Start server**. It shows the phone's IP at the bottom,
+   e.g. `http://192.168.1.50:8080` — **use this exact IP** in `.env` as
+   `PHONE_STREAM_URL=http://192.168.1.50:8080/video` (no angle brackets!).
+3. Run: `python main.py --provider gemini --auto`
+
+   Alternatives: **DroidCam** (`http://<phone-ip>:4747/video`, also has a USB mode).
+
+### iPhone
+
+There is no IP Webcam for iOS, so use an app that makes the phone appear as a
+**local webcam on the PC** (install the app + the PC driver):
+
+- **iVCam** (eInfoMount) or **EpocCam** (Elgato) — after installing, the phone
+  shows up as a normal webcam. Then run with the webcam index:
+
+  ```bat
+  python main.py --source 0 --provider gemini --auto
+  ```
+
+  (If the window is black, try `--source 1`, `--source 2`...)
+
+### Troubleshooting the connection
+
+- `Connection to tcp://... failed` / `ping` times out → wrong IP (check the IP
+  shown **in the app**, not a guess), phone not on the same Wi‑Fi, or the
+  router has **AP/client isolation** on (disable it in router settings).
+- `Failed to create DXGI factory.` is a harmless OpenCV warning on some Windows
+  setups — the preview window still opens.
+- Always put the **real phone IP** in `.env` / `--stream-url`; the shipped
+  `.env.example` value `192.168.1.100` is only a placeholder.
 
 ## 2. Install on the PC
 
