@@ -22,6 +22,11 @@ from mcq_parser import MCQ
 
 LETTER_RE = re.compile(r"\b([A-E])\b")
 
+GEMINI_MODEL_PREFS = (
+    "gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash-lite",
+    "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash",
+)
+
 
 @dataclass
 class Answer:
@@ -55,11 +60,8 @@ def solve_local(mcq: MCQ) -> Answer:
         overlap = len(q_words & o_words)
         rare = len([w for w in (q_words & o_words) if len(w) > 5])
         if negated:
-            # elimination: pick the option with the LEAST overlap
             score = -(rare * 2 + overlap) + len(opt) / 500.0
         else:
-            # positive question: prefer distinctive shared words, slightly
-            # prefer longer/more informative options
             score = rare * 2 - overlap * 0.5 + len(opt) / 200.0
         if best_score is None or score > best_score:
             best, best_score = letter, score
@@ -86,45 +88,57 @@ def _extract_letter(text: str, mcq: MCQ) -> str | None:
     return None
 
 
-def pick_gemini_model(api_key: str, timeout: float = 6.0) -> str:
-    """Ask the API which models this key can use; pick the fastest flash model.
-    Fixes 404s when the hardcoded model name isn't available for the key."""
-    r = requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}",
-                     timeout=timeout)
-    r.raise_for_status()
-    names = [m["name"].split("/")[-1] for m in r.json().get("models", [])]
-    for pref in ("gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash-lite",
-                 "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"):
-        if pref in names:
-            return pref
-    flash = [n for n in names if "flash" in n]
-    return flash[0] if flash else (names[0] if names else "gemini-2.0-flash")
+def gemini_model_candidates(api_key: str, timeout: float = 6.0) -> list[str]:
+    """Models this key can actually list, fastest-flash first. Falls back to a
+    static list if the listing call itself fails."""
+    try:
+        r = requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}",
+                         timeout=timeout)
+        r.raise_for_status()
+        names = [m["name"].split("/")[-1] for m in r.json().get("models", [])]
+        ordered = [p for p in GEMINI_MODEL_PREFS if p in names]
+        ordered += [n for n in names if "flash" in n and n not in ordered]
+        if ordered:
+            return ordered
+    except Exception as e:
+        print(f"[solver] model listing failed ({e}); trying static list")
+    return list(GEMINI_MODEL_PREFS)
 
 
 def solve_gemini(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> Answer:
+    """Try every candidate model x both API versions. Each failure is logged
+    WITH THE RESPONSE BODY so a 404 reveals the real reason (bad key, model not
+    enabled for the project, etc.) instead of a bare status code."""
     start = time.perf_counter()
     body = {
         "contents": [{"parts": [{"text": PROMPT.format(mcq=mcq.to_prompt())}]}],
         "generationConfig": {"maxOutputTokens": 16, "temperature": 0},
     }
-    # try v1beta first, fall back to v1 (404 happens when the model name is
-    # only available on one of the endpoints for a given key)
+    candidates = [model] if model else []
+    candidates += [m for m in gemini_model_candidates(api_key, timeout) if m not in candidates]
     last_err = None
-    for api_version in ("v1beta", "v1"):
-        url = (f"https://generativelanguage.googleapis.com/{api_version}/models/"
-               f"{model}:generateContent?key={api_key}")
-        try:
-            r = requests.post(url, json=body, timeout=timeout)
-            r.raise_for_status()
-            data = r.json()
-            text = data["candidates"][0]["content"]["parts"][0]["text"]
-            latency = int((time.perf_counter() - start) * 1000)
-            return Answer(_extract_letter(text, mcq),
-                          mcq.options.get(_extract_letter(text, mcq) or "", text),
-                          "gemini", latency, raw=text)
-        except Exception as e:
-            last_err = e
-    raise last_err
+    for m in candidates[:5]:
+        for api_version in ("v1beta", "v1"):
+            url = (f"https://generativelanguage.googleapis.com/{api_version}/models/"
+                   f"{m}:generateContent?key={api_key}")
+            try:
+                r = requests.post(url, json=body, timeout=timeout)
+                r.raise_for_status()
+                data = r.json()
+                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                latency = int((time.perf_counter() - start) * 1000)
+                print(f"[solver] gemini OK with {m} ({api_version})")
+                return Answer(_extract_letter(text, mcq),
+                              mcq.options.get(_extract_letter(text, mcq) or "", text),
+                              "gemini", latency, raw=text)
+            except requests.HTTPError as e:
+                resp_body = e.response.text[:300] if e.response is not None else ""
+                last_err = f"{m}@{api_version}: HTTP {e.response.status_code} body={resp_body}"
+                print(f"[solver] {last_err}")
+            except Exception as e:
+                last_err = f"{m}@{api_version}: {e}"
+                print(f"[solver] {last_err}")
+    raise RuntimeError(last_err or "no gemini model worked")
 
 
 def solve_deepseek(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> Answer:
@@ -154,11 +168,9 @@ class Solver:
                  model: str = "", timeout: float = 6.0):
         self.provider = provider.lower()
         self.api_key = api_key
-        self.model = model or {"gemini": "gemini-2.0-flash",
-                               "deepseek": "deepseek-chat"}.get(self.provider, "")
+        self.model = model or {"gemini": "", "deepseek": "deepseek-chat"}.get(self.provider, "")
         self.timeout = timeout
         self._cache: dict[str, Answer] = {}
-        self._gemini_model_resolved = False
 
     def solve(self, mcq: MCQ) -> Answer:
         key = mcq.to_prompt()
