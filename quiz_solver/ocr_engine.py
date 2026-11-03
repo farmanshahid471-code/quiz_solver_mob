@@ -38,7 +38,8 @@ class RapidOCREngine(OCREngine):
 
     def __init__(self):
         from rapidocr_onnxruntime import RapidOCR  # heavy import, done lazily
-        self._ocr = RapidOCR()
+        # small detection input = much faster on CPU, still fine for screen text
+        self._ocr = RapidOCR(det_limit_side_len=640, det_limit_type="max")
 
     def read_text(self, img: np.ndarray) -> str:
         proc = preprocess(img)

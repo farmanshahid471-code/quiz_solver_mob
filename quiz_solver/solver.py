@@ -86,6 +86,21 @@ def _extract_letter(text: str, mcq: MCQ) -> str | None:
     return None
 
 
+def pick_gemini_model(api_key: str, timeout: float = 6.0) -> str:
+    """Ask the API which models this key can use; pick the fastest flash model.
+    Fixes 404s when the hardcoded model name isn't available for the key."""
+    r = requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}",
+                     timeout=timeout)
+    r.raise_for_status()
+    names = [m["name"].split("/")[-1] for m in r.json().get("models", [])]
+    for pref in ("gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash-lite",
+                 "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-latest"):
+        if pref in names:
+            return pref
+    flash = [n for n in names if "flash" in n]
+    return flash[0] if flash else (names[0] if names else "gemini-2.0-flash")
+
+
 def solve_gemini(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> Answer:
     start = time.perf_counter()
     body = {
@@ -143,6 +158,7 @@ class Solver:
                                "deepseek": "deepseek-chat"}.get(self.provider, "")
         self.timeout = timeout
         self._cache: dict[str, Answer] = {}
+        self._gemini_model_resolved = False
 
     def solve(self, mcq: MCQ) -> Answer:
         key = mcq.to_prompt()
