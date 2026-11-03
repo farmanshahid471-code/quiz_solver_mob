@@ -118,7 +118,7 @@ def solve_gemini(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> An
     candidates += [m for m in gemini_model_candidates(api_key, timeout) if m not in candidates]
     last_err = None
     for m in candidates[:5]:
-        for api_version in ("v1beta", "v1"):
+        for api_version in ("v1", "v1beta"):  # v1 first: v1beta was timing out from some networks
             url = (f"https://generativelanguage.googleapis.com/{api_version}/models/"
                    f"{m}:generateContent?key={api_key}")
             try:
