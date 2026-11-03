@@ -54,11 +54,13 @@ File Explorer windows, remove the stray folder on D:, and re-clone directly
 on D:
 
 ```bat
-D:\> rmdir /s /q D:\quiz_solver_mob
-D:\> git clone -b arena/cb605cae-quiz-solver-mob https://github.com/farmanshahid471-code/quiz_solver_mob.git
-D:\> rmdir /s /q C:\Users\<you>\quiz_solver_mob     REM clean up the old C: copy
-D:\> cd D:\quiz_solver_mob\quiz_solver
-D:\quiz_solver_mob\quiz_solver> python -m venv D:\quiz_solver_mob\.venv
+REM explicit destination path -> works from ANY current directory:
+rmdir /s /q D:\quiz_solver_mob
+REM if an old clone exists on C:, remove it first (close Explorer windows!):
+rmdir /s /q C:\Users\<you>\quiz_solver_mob
+git clone -b arena/cb605cae-quiz-solver-mob https://github.com/farmanshahid471-code/quiz_solver_mob.git D:\quiz_solver_mob
+cd D:\quiz_solver_mob\quiz_solver
+python -m venv D:\quiz_solver_mob\.venv
 ```
 
 Optional: `pip install pytesseract` + the Tesseract binary if you prefer it over RapidOCR.
