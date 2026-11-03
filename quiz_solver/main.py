@@ -75,9 +75,10 @@ class QuizSolverApp:
             t0 = time.perf_counter()
             # OCR on a downscaled copy - much faster, text stays readable
             h, w = frame.shape[:2]
+            ocr_img = frame
             if w > 640:
-                frame = cv2.resize(frame, (640, int(h * 640 / w)), interpolation=cv2.INTER_AREA)
-            text = self.ocr.read_text(frame)
+                ocr_img = cv2.resize(frame, (640, int(h * 640 / w)), interpolation=cv2.INTER_AREA)
+            text = self.ocr.read_text(ocr_img)
             t_ocr = (time.perf_counter() - t0) * 1000
             mcq = parse_mcq(text)
             if mcq is None:
