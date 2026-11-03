@@ -59,7 +59,8 @@ Tip: put keys in a `.env` file (`GEMINI_API_KEY=...`, `PHONE_STREAM_URL=...`) â€
 ## 4. Test without a camera
 
 ```bash
-python main.py --demo sample_ocr.txt --provider none
+python main.py --demo sample_ocr.txt --provider none   # solve one sample MCQ
+python -m pytest tests/ -q                             # offline test suite (parser + solver)
 ```
 
 ## Speed notes

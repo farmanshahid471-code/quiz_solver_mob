@@ -35,22 +35,33 @@ class Answer:
 # --------------------------------------------------------------------- #
 # Local heuristic fallback (offline, ~0 ms)
 # --------------------------------------------------------------------- #
+NEGATION_RE = re.compile(r"\b(not|except|least|never|incorrect|false|wrong)\b", re.I)
+
+
 def solve_local(mcq: MCQ) -> Answer:
+    """Offline heuristic. Fast (~0 ms) but far from perfect - the LLM is the
+    primary solver. Handles negation questions ("NOT a mammal") by elimination:
+    the answer is the option LEAST related to the question's words."""
     start = time.perf_counter()
     q = mcq.question.lower()
     q_words = set(re.findall(r"[a-z]+", q))
-    best, best_score = None, -1.0
+    negated = bool(NEGATION_RE.search(mcq.question))
+
+    best, best_score = None, None
     for letter, opt in mcq.options.items():
         o_words = set(re.findall(r"[a-z]+", opt.lower()))
         if not o_words:
             continue
-        # options sharing distinctive words with the question are usually wrong;
-        # MCQ answers often relate to what the question asks about -> use overlap
-        # of rare words, plus prefer longer, more informative options slightly.
         overlap = len(q_words & o_words)
         rare = len([w for w in (q_words & o_words) if len(w) > 5])
-        score = rare * 2 - overlap * 0.5 + len(opt) / 200.0
-        if score > best_score:
+        if negated:
+            # elimination: pick the option with the LEAST overlap
+            score = -(rare * 2 + overlap) + len(opt) / 500.0
+        else:
+            # positive question: prefer distinctive shared words, slightly
+            # prefer longer/more informative options
+            score = rare * 2 - overlap * 0.5 + len(opt) / 200.0
+        if best_score is None or score > best_score:
             best, best_score = letter, score
     latency = int((time.perf_counter() - start) * 1000)
     if best is None:
