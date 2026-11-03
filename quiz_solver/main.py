@@ -19,6 +19,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import queue
 import sys
 import threading
 import time
@@ -61,6 +62,7 @@ class QuizSolverApp:
         self.cooldown = 3.0  # min seconds between auto scans (OCR is the slow part)
         self._lock = threading.Lock()
         self._last_hash = ""
+        self._win_queue: queue.Queue = queue.Queue()
 
     # ------------------------------------------------------------------ #
     def solve_frame(self, frame: np.ndarray) -> None:
@@ -94,11 +96,7 @@ class QuizSolverApp:
                 self.answer = ans
                 self.status = f"OCR {t_ocr:.0f} ms"
                 self._busy = False
-            if self.win:
-                try:
-                    self.win.show(ans)
-                except Exception:
-                    pass
+            self._win_queue.put(ans)  # main thread updates the Tk window
             print(f"[result] {ans.letter or '?'} | {ans.source} | {ans.latency_ms} ms | OCR {t_ocr:.0f} ms")
             if mcq:
                 print(f"[q] {mcq.question}\n[opts] {mcq.options}")
@@ -155,6 +153,17 @@ class QuizSolverApp:
                 self.auto = not self.auto
                 self._changed = False
                 print(f"[info] auto-solve {'ON' if self.auto else 'OFF'}")
+
+            while True:  # update answer window on the main (Tk) thread
+                try:
+                    ans = self._win_queue.get_nowait()
+                except queue.Empty:
+                    break
+                if self.win:
+                    try:
+                        self.win.show(ans)
+                    except Exception:
+                        pass
 
             out = draw_on_frame(frame, self.answer, self.status, fps)
             cv2.imshow("Quiz Solver - phone camera", out)
