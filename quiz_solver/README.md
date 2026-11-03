@@ -62,6 +62,15 @@ cable, pick *USB* in the client → the phone becomes a local webcam:
 python main.py --source 0 --provider gemini --auto
 ```
 
+**iPhone — DroidCam Webcam (App Store):** install the **DroidCam Webcam** app on
+the phone and the **DroidCam Windows client** on the PC (droidcam.com), connect
+both to the same Wi‑Fi, enter the PC's IP (from `ipconfig`, e.g.
+`192.168.100.225`) in the app → the phone becomes webcam "DroidCam Source 1" →
+
+```bat
+python main.py --source 0 --provider gemini --auto
+```
+
 **iPhone — EpocCam USB:** EpocCam (Elgato) supports a wired USB connection
 (app on phone + driver on PC) → then:
 
