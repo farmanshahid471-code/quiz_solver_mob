@@ -152,6 +152,11 @@ class Solver:
         answer = None
         if self.provider in ("gemini", "deepseek") and self.api_key:
             try:
+                if self.provider == "gemini" and not self._gemini_model_resolved:
+                    if not self.model or self.model == "gemini-2.0-flash":
+                        self.model = pick_gemini_model(self.api_key, self.timeout)
+                        print(f"[solver] using Gemini model: {self.model}")
+                    self._gemini_model_resolved = True
                 fn = solve_gemini if self.provider == "gemini" else solve_deepseek
                 answer = fn(self.api_key, self.model, mcq, self.timeout)
             except Exception as e:

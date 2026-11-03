@@ -74,6 +74,11 @@ def parse_mcq(text: str) -> MCQ | None:
     if len(options) < 2:
         return None
 
+    # normalize common OCR confusions for single-character options (O vs 0, l vs 1)
+    for letter, opt in list(options.items()):
+        if len(opt) == 1:
+            options[letter] = {"O": "0", "o": "0", "l": "1", "I": "1", "|": "1"}.get(opt, opt)
+
     question = _clean(" ".join(question_lines))
     if not question:
         question = "(question not recognized)"

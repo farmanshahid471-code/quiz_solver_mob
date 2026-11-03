@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 
 
-def preprocess(img: np.ndarray, target_width: int = 1280) -> np.ndarray:
+def preprocess(img: np.ndarray, target_width: int = 960) -> np.ndarray:
     """Keep OCR fast: cap the working resolution (bigger = much slower on CPU),
     enhance contrast with CLAHE. Heavy denoising removed - it cost seconds."""
     h, w = img.shape[:2]
