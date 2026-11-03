@@ -34,6 +34,30 @@ python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\act
 pip install -r requirements.txt
 ```
 
+### Windows — keep everything on the D: drive
+
+`git clone` puts the folder in your **current** directory, so make sure the
+prompt shows `D:\>` before cloning (check the drive letter in the prompt!):
+
+```bat
+D:\> git clone -b arena/cb605cae-quiz-solver-mob https://github.com/farmanshahid471-code/quiz_solver_mob.git
+D:\> cd D:\quiz_solver_mob\quiz_solver
+D:\quiz_solver_mob\quiz_solver> python -m venv D:\quiz_solver_mob\.venv
+D:\quiz_solver_mob\quiz_solver> D:\quiz_solver_mob\.venv\Scripts\activate
+(.venv) D:\quiz_solver_mob\quiz_solver> pip install -r requirements.txt
+```
+
+Troubleshooting: if you ran `cd D:\` but the prompt still shows `C:\...`, the
+clone went to the C: folder. Move it over and redo the venv in the right place:
+
+```bat
+REM only do this if D:\quiz_solver_mob contains just the stray .venv:
+rmdir /s /q D:\quiz_solver_mob
+move C:\Users\<you>\quiz_solver_mob D:\
+cd D:\quiz_solver_mob\quiz_solver
+python -m venv D:\quiz_solver_mob\.venv
+```
+
 Optional: `pip install pytesseract` + the Tesseract binary if you prefer it over RapidOCR.
 
 ## 3. Run
