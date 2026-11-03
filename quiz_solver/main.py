@@ -189,7 +189,7 @@ def main() -> None:
     p.add_argument("--provider", default="none", choices=["none", "gemini", "deepseek"])
     p.add_argument("--api-key", default="")
     p.add_argument("--model", default="")
-    p.add_argument("--timeout", type=float, default=6.0, help="LLM HTTP timeout in seconds")
+    p.add_argument("--timeout", type=float, default=12.0, help="LLM HTTP timeout in seconds")
     p.add_argument("--auto", action="store_true", help="auto-solve when the screen changes")
     p.add_argument("--no-window", action="store_true", help="disable the always-on-top answer window")
     p.add_argument("--demo", default="", help="solve an MCQ from a text file instead of the camera")

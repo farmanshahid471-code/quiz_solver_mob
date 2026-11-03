@@ -114,6 +114,17 @@ def gemini_model_candidates(api_key: str, timeout: float = 6.0) -> list[str]:
     return list(GEMINI_MODEL_PREFS)
 
 
+
+def _gemini_text(data: dict) -> str:
+    """Extract text from a generateContent response tolerantly (content.parts
+    may be absent for blocked/odd responses)."""
+    try:
+        parts = data["candidates"][0]["content"]["parts"]
+        return "".join(p.get("text", "") for p in parts)
+    except Exception:
+        return str(data)[:200]
+
+
 def solve_gemini(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> Answer:
     """Try every candidate model x both API versions (v1 first - v1beta timed
     out from some networks). Each failure is logged WITH THE RESPONSE BODY so
@@ -131,10 +142,21 @@ def solve_gemini(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> An
             url = (f"https://generativelanguage.googleapis.com/{api_version}/models/"
                    f"{m}:generateContent?key={api_key}")
             try:
-                r = requests.post(url, json=body, timeout=timeout)
-                r.raise_for_status()
+                r = None
+                for attempt in range(2):  # retry once on 503 / read timeout
+                    try:
+                        r = requests.post(url, json=body, timeout=timeout)
+                        r.raise_for_status()
+                        break
+                    except requests.HTTPError as e:
+                        if e.response is not None and e.response.status_code == 503 and attempt == 0:
+                            time.sleep(0.5)
+                            continue
+                        raise
+                if r is None:
+                    raise RuntimeError("no response")
                 data = r.json()
-                text = data["candidates"][0]["content"]["parts"][0]["text"]
+                text = _gemini_text(data)
                 latency = int((time.perf_counter() - start) * 1000)
                 print(f"[solver] gemini OK with {m} ({api_version})")
                 return Answer(_extract_letter(text, mcq),
