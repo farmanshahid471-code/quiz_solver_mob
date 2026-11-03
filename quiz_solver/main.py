@@ -55,6 +55,7 @@ class QuizSolverApp:
         self.status = "ready - press SPACE to scan"
         self._last_small = None
         self._stable = 0
+        self._changed = False
         self._busy = False
         self._lock = threading.Lock()
         self._last_hash = ""
