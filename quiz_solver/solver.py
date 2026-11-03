@@ -22,10 +22,16 @@ from mcq_parser import MCQ
 
 LETTER_RE = re.compile(r"\b([A-E])\b")
 
+# 3.x flash models first: the API told us 2.x models are "no longer available
+# to new users" and to use gemini-3.5-flash-lite / gemini-3.8-flash instead.
 GEMINI_MODEL_PREFS = (
+    "gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.5-flash",
     "gemini-2.5-flash-lite", "gemini-2.5-flash", "gemini-2.0-flash-lite",
     "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash",
 )
+
+# model families that can't answer text MCQs via generateContent
+NON_TEXT_MARKERS = ("tts", "imagen", "veo", "embed", "aqa", "native-audio")
 
 
 @dataclass
@@ -89,15 +95,18 @@ def _extract_letter(text: str, mcq: MCQ) -> str | None:
 
 
 def gemini_model_candidates(api_key: str, timeout: float = 6.0) -> list[str]:
-    """Models this key can actually list, fastest-flash first. Falls back to a
-    static list if the listing call itself fails."""
+    """Models this key can actually list, fastest text model first. Falls back
+    to a static list if the listing call itself fails."""
     try:
         r = requests.get(f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}",
                          timeout=timeout)
         r.raise_for_status()
         names = [m["name"].split("/")[-1] for m in r.json().get("models", [])]
         ordered = [p for p in GEMINI_MODEL_PREFS if p in names]
-        ordered += [n for n in names if "flash" in n and n not in ordered]
+        ordered += [n for n in names
+                    if ("flash" in n or "gemini-3" in n)
+                    and not any(x in n for x in NON_TEXT_MARKERS)
+                    and n not in ordered]
         if ordered:
             return ordered
     except Exception as e:
@@ -106,9 +115,9 @@ def gemini_model_candidates(api_key: str, timeout: float = 6.0) -> list[str]:
 
 
 def solve_gemini(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> Answer:
-    """Try every candidate model x both API versions. Each failure is logged
-    WITH THE RESPONSE BODY so a 404 reveals the real reason (bad key, model not
-    enabled for the project, etc.) instead of a bare status code."""
+    """Try every candidate model x both API versions (v1 first - v1beta timed
+    out from some networks). Each failure is logged WITH THE RESPONSE BODY so
+    a 404 reveals the real reason (retired model, bad key, wrong project...)."""
     start = time.perf_counter()
     body = {
         "contents": [{"parts": [{"text": PROMPT.format(mcq=mcq.to_prompt())}]}],
@@ -118,7 +127,7 @@ def solve_gemini(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> An
     candidates += [m for m in gemini_model_candidates(api_key, timeout) if m not in candidates]
     last_err = None
     for m in candidates[:5]:
-        for api_version in ("v1", "v1beta"):  # v1 first: v1beta was timing out from some networks
+        for api_version in ("v1", "v1beta"):
             url = (f"https://generativelanguage.googleapis.com/{api_version}/models/"
                    f"{m}:generateContent?key={api_key}")
             try:
