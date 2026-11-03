@@ -40,8 +40,10 @@ pip install -r requirements.txt
 prompt shows `D:\>` before cloning (check the drive letter in the prompt!):
 
 ```bat
+REM IMPORTANT: in cmd.exe use "cd /d" to switch drives — plain "cd D:\..."
+REM only changes the folder on D: but keeps the prompt on C:!
 D:\> git clone -b arena/cb605cae-quiz-solver-mob https://github.com/farmanshahid471-code/quiz_solver_mob.git
-D:\> cd D:\quiz_solver_mob\quiz_solver
+D:\> cd /d D:\quiz_solver_mob\quiz_solver
 D:\quiz_solver_mob\quiz_solver> python -m venv D:\quiz_solver_mob\.venv
 D:\quiz_solver_mob\quiz_solver> D:\quiz_solver_mob\.venv\Scripts\activate
 (.venv) D:\quiz_solver_mob\quiz_solver> pip install -r requirements.txt
