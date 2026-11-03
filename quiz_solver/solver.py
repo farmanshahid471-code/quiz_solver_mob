@@ -81,10 +81,16 @@ def solve_local(mcq: MCQ) -> Answer:
 # LLM APIs - TEXT ONLY, short prompt, tiny token budget, short timeout
 # --------------------------------------------------------------------- #
 PROMPT = (
-    "You are answering a multiple-choice question. "
+    "You are answering a multiple-choice question scanned from a screen. "
     "Reply with ONLY the single option letter (A, B, C, D or E). Nothing else.\n"
-    "{mcq}"
+    "{mcq}\n"
+    "Raw OCR text of the screen (may contain noise; use it to disambiguate):\n"
+    "{raw}"
 )
+
+
+def _prompt(mcq: MCQ) -> str:
+    return PROMPT.format(mcq=mcq.to_prompt(), raw=(mcq.raw or "")[:900])
 
 
 def _extract_letter(text: str, mcq: MCQ) -> str | None:
@@ -131,7 +137,7 @@ def solve_gemini(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> An
     a 404 reveals the real reason (retired model, bad key, wrong project...)."""
     start = time.perf_counter()
     body = {
-        "contents": [{"parts": [{"text": PROMPT.format(mcq=mcq.to_prompt())}]}],
+        "contents": [{"parts": [{"text": _prompt(mcq)}]}],
         "generationConfig": {"maxOutputTokens": 16, "temperature": 0},
     }
     candidates = [model] if model else []
@@ -178,7 +184,7 @@ def solve_deepseek(api_key: str, model: str, mcq: MCQ, timeout: float = 6.0) -> 
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     body = {
         "model": model,
-        "messages": [{"role": "user", "content": PROMPT.format(mcq=mcq.to_prompt())}],
+        "messages": [{"role": "user", "content": _prompt(mcq)}],
         "max_tokens": 16,
         "temperature": 0,
     }
