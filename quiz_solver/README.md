@@ -45,6 +45,32 @@ There is no IP Webcam for iOS, so use an app that makes the phone appear as a
 
   (If the window is black, try `--source 1`, `--source 2`...)
 
+### USB connection (no Wi‑Fi needed)
+
+**Android — IP Webcam over USB (adb):** enable *USB debugging* on the phone,
+connect the cable, then on the PC:
+
+```bat
+adb forward tcp:8080 tcp:8080
+python main.py --stream-url http://localhost:8080/video --provider gemini --auto
+```
+
+**Android — DroidCam USB:** install the DroidCam app + PC client, connect the
+cable, pick *USB* in the client → the phone becomes a local webcam:
+
+```bat
+python main.py --source 0 --provider gemini --auto
+```
+
+**iPhone — EpocCam USB:** EpocCam (Elgato) supports a wired USB connection
+(app on phone + driver on PC) → then:
+
+```bat
+python main.py --source 0 --provider gemini --auto
+```
+
+(iVCam is Wi‑Fi only; use EpocCam if you want iPhone over USB.)
+
 ### Troubleshooting the connection
 
 - `Connection to tcp://... failed` / `ping` times out → wrong IP (check the IP
